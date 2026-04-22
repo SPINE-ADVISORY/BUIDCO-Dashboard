@@ -1,0 +1,231 @@
+/* Global Styles */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&family=DM+Mono:wght@400;500&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'DM Sans', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F4F6FB;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD2E0;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
+
+/* Table Styles */
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+td {
+  padding: 11px 14px;
+  font-size: 13px;
+  color: #374151;
+  border-bottom: 1px solid #E2E6EF;
+  vertical-align: middle;
+}
+
+tr:hover td {
+  background: #F8F9FC;
+}
+
+/* Form Inputs */
+input[type="text"],
+input[type="date"],
+input[type="number"],
+select {
+  background: #FFFFFF;
+  border: 1px solid #E2E6EF;
+  border-radius: 8px;
+  color: #374151;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+}
+
+input[type="text"]:focus,
+input[type="date"]:focus,
+input[type="number"]:focus,
+select:focus {
+  border-color: #1A5CFF;
+  box-shadow: 0 0 0 3px rgba(26, 92, 255, 0.1);
+}
+
+select {
+  cursor: pointer;
+}
+
+/* Button Styles */
+button {
+  font-family: 'DM Sans', sans-serif;
+}
+
+.btn-primary {
+  background: #0D2137;
+  border: none;
+  color: white;
+  border-radius: 8px;
+  padding: 9px 20px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.btn-primary:hover {
+  background: #1B3A5C;
+}
+
+.btn-ghost {
+  background: none;
+  border: 1px solid #E2E6EF;
+  color: #374151;
+  border-radius: 7px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.btn-ghost:hover {
+  border-color: #1A5CFF;
+  color: #1A5CFF;
+}
+
+/* Navigation Tabs */
+.nav-tab {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  transition: all 0.15s;
+  color: #374151;
+}
+
+.nav-tab:hover {
+  background: #E2E6EF;
+}
+
+.nav-tab.active {
+  background: #0D2137;
+  color: white;
+  font-weight: 600;
+}
+
+/* Sector Cards */
+.sector-card {
+  cursor: pointer;
+  transition: all 0.18s;
+  border: 1px solid #E2E6EF;
+  border-radius: 12px;
+  padding: 20px;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(13, 33, 55, 0.05);
+}
+
+.sector-card:hover {
+  box-shadow: 0 8px 24px rgba(13, 33, 55, 0.12);
+  transform: translateY(-3px);
+  border-color: rgba(26, 92, 255, 0.27);
+}
+
+/* Search Result Items */
+.sr-item:hover {
+  background: #F8F9FC;
+  cursor: pointer;
+}
+
+/* Form Grid */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+/* Utility Classes */
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.mt-2 {
+  margin-top: 8px;
+}
+
+.mt-4 {
+  margin-top: 16px;
+}
+
+.mb-2 {
+  margin-bottom: 8px;
+}
+
+.mb-4 {
+  margin-bottom: 16px;
+}
+
+.gap-2 {
+  gap: 8px;
+}
+
+.gap-4 {
+  gap: 16px;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
