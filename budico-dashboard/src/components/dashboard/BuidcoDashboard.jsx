@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { COLORS as C, PHASE_COLORS as PHASE_COLOR, SEVERITY_COLORS as SEV_COLOR } from "../../config/theme";
@@ -16,6 +17,229 @@ import { Bar2, Badge, Pill, Logo, KpiCard, Modal } from "./DashboardPrimitives";
 import { ModalFilterRow } from "./ModalFilterRow";
 import { ProjectsTable } from "./ProjectsTable";
 import { ProjectDetail } from "./ProjectDetail";
+
+// Sector codes considered “Tender Works” in v26 overview
+const CONSTRUCTION_SECTOR_CODES = [
+  "WATER",
+  "SEW",
+  "DRAIN",
+  "SWM",
+  "TRAN",
+  "HOUSE",
+  "RIVER",
+  "LIGHT",
+  "MARKET",
+  "BEAUTY",
+  "ROAD",
+];
+
+// PSO/PMU consultancy tenders (v26 dataset)
+const PSO_PMU_TENDERS = [
+  {
+    tender_id: "T-PSO-01",
+    tender_ref: "BU/PMU/PAT/2025/01",
+    tender_name: "Programme Management Consultancy (PMC) — Patna Urban Cluster",
+    district: "Patna",
+    category: "PMC",
+    estimated_cost_lakhs: 420,
+    floated_date: "2025-02-10",
+    status: "Tender",
+    agency_type: "PMU",
+  },
+  {
+    tender_id: "T-PSO-02",
+    tender_ref: "BU/PSO/MUZ/2025/02",
+    tender_name: "Project Support Office (PSO) Services — North Bihar Division",
+    district: "Muzaffarpur",
+    category: "PSO",
+    estimated_cost_lakhs: 310,
+    floated_date: "2025-03-01",
+    status: "Pre-Tender",
+    agency_type: "PSO",
+  },
+  {
+    tender_id: "T-PSO-03",
+    tender_ref: "BU/PMU/GAY/2025/03",
+    tender_name: "Third Party Quality Audit & PMU Support — Gaya",
+    district: "Gaya",
+    category: "QA/PMU",
+    estimated_cost_lakhs: 185,
+    floated_date: "2025-03-18",
+    status: "Tender",
+    agency_type: "PMU",
+  },
+  {
+    tender_id: "T-PSO-04",
+    tender_ref: "BU/PSO/BHG/2025/04",
+    tender_name: "GIS & MIS System Development — BUIDCO HQ",
+    district: "Patna",
+    category: "IT/MIS",
+    estimated_cost_lakhs: 240,
+    floated_date: "2025-01-25",
+    status: "Tender",
+    agency_type: "PSO",
+  },
+  {
+    tender_id: "T-PSO-05",
+    tender_ref: "BU/PMU/DSB/2025/05",
+    tender_name: "Social Development & Resettlement PMU — Darbhanga",
+    district: "Darbhanga",
+    category: "Social PMU",
+    estimated_cost_lakhs: 128,
+    floated_date: "2025-04-02",
+    status: "Pre-Tender",
+    agency_type: "PMU",
+  },
+  {
+    tender_id: "T-PSO-06",
+    tender_ref: "BU/PSO/BGS/2025/06",
+    tender_name: "Environment & Safeguard Monitoring Consultancy",
+    district: "Begusarai",
+    category: "Environment",
+    estimated_cost_lakhs: 96,
+    floated_date: "2025-02-20",
+    status: "Conceptualization",
+    agency_type: "PSO",
+  },
+];
+
+const STAGE_ORDER = [
+  "Conceptualization",
+  "Pre-Tender",
+  "Tender",
+  "Post-Tender",
+  "Construction",
+  "O&M",
+  "Completed",
+];
+
+// ─── MD FIELD — defined OUTSIDE main component so React doesn't remount on every render ─────
+function MdField({
+  label,
+  fkey,
+  type = "text",
+  options,
+  span2 = false,
+  readOnly = false,
+  form,
+  setForm,
+}) {
+  const val = form[fkey] !== undefined ? form[fkey] : "";
+  const handleChange = (e) => {
+    const raw = e.target.value;
+    setForm((f) => ({ ...f, [fkey]: raw }));
+  };
+  const base = {
+    background: readOnly ? "#F8F9FC" : "#FFFFFF",
+    border: `1px solid ${readOnly ? "#E2E6EF" : "#CBD2E0"}`,
+    borderRadius: 8,
+    color: "#0D2137",
+    padding: "9px 12px",
+    fontSize: 13,
+    fontFamily: "'DM Sans',sans-serif",
+    outline: "none",
+    width: "100%",
+    cursor: readOnly ? "default" : "text",
+    WebkitAppearance: "none",
+  };
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 5,
+        gridColumn: span2 ? "span 2" : undefined,
+      }}
+    >
+      <label
+        style={{
+          fontSize: 11,
+          color: "#6B7280",
+          fontWeight: 600,
+          textTransform: "uppercase",
+          letterSpacing: ".05em",
+        }}
+      >
+        {label}
+      </label>
+      {options ? (
+        <select
+          value={String(val)}
+          onChange={handleChange}
+          disabled={readOnly}
+          style={{ ...base, cursor: readOnly ? "default" : "pointer" }}
+        >
+          {options.map((o) => (
+            <option key={o.v || o} value={o.v || o}>
+              {o.l || o}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={type}
+          readOnly={readOnly}
+          value={val === null || val === undefined ? "" : String(val)}
+          onChange={handleChange}
+          style={base}
+          step={type === "number" ? "any" : undefined}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── COS FIELD — for inline CoS/EoT row editing ───────────────────────────────
+function CosField({ label, fkey, type = "text", options, row, onChange }) {
+  const val = row[fkey] !== undefined ? row[fkey] : "";
+  const base = {
+    background: "#FFFFFF",
+    border: "1px solid #CBD2E0",
+    borderRadius: 6,
+    color: "#0D2137",
+    padding: "7px 10px",
+    fontSize: 12,
+    fontFamily: "'DM Sans',sans-serif",
+    outline: "none",
+    width: "100%",
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <label
+        style={{
+          fontSize: 10,
+          color: "#6B7280",
+          fontWeight: 600,
+          textTransform: "uppercase",
+          letterSpacing: ".05em",
+        }}
+      >
+        {label}
+      </label>
+      {options ? (
+        <select
+          value={String(val)}
+          onChange={(e) => onChange(fkey, e.target.value)}
+          style={{ ...base, cursor: "pointer" }}
+        >
+          {options.map((o) => (
+            <option key={o.v || o} value={o.v || o}>
+              {o.l || o}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={type}
+          value={val === null || val === undefined ? "" : String(val)}
+          onChange={(e) => onChange(fkey, e.target.value)}
+          style={base}
+          step={type === "number" ? "any" : undefined}
+        />
+      )}
+    </div>
+  );
+}
 
 export default function BuidcoDashboard() {
   const {
@@ -40,9 +264,12 @@ export default function BuidcoDashboard() {
 
   const [showActiveModal, setShowActiveModal]   = useState(false);
   const [showTendersModal, setShowTendersModal] = useState(false);
+  const [showServiceTendersModal, setShowServiceTendersModal] = useState(false);
   const [showMonsoonModal, setShowMonsoonModal]       = useState(false);
   const [showExpenditureModal, setShowExpenditureModal] = useState(false);
   const [showFinUtilModal, setShowFinUtilModal]         = useState(false);
+  const [showPhysProgressModal, setShowPhysProgressModal] = useState(false);
+  const [showFinanceModal, setShowFinanceModal] = useState(false);
   const [modalFilters, setModalFilters]                 = useState({});
   const [tenderFilters, setTenderFilters]               = useState({});
   const [mgmtFilters, setMgmtFilters]                   = useState({});
@@ -56,6 +283,16 @@ export default function BuidcoDashboard() {
   const [cosCategoryFilter, setCosCategoryFilter]   = useState("ALL");
   const [districtFilter, setDistrictFilter]         = useState("ALL");
 
+  // MD Input Sheet state (MD-only UI)
+  const [mdInputSearch, setMdInputSearch] = useState("");
+  const [mdSectorFilter, setMdSectorFilter] = useState("ALL");
+  const [mdInputProject, setMdInputProject] = useState(null);
+  const [mdInputForm, setMdInputForm] = useState({});
+  const [mdInputSaved, setMdInputSaved] = useState(false);
+  const [mdCosData, setMdCosData] = useState(() =>
+    (cosEotRows || []).map((c, i) => ({ ...c, _uid: i }))
+  );
+
   const projTable  = useTableControls(projects, ["project_name","project_code","ulb_name","district"]);
   const activeModal= useTableControls(projects, ["project_name","project_code","ulb_name"]);
   const [activeDelayFilter, setActiveDelayFilter] = useState("ALL");
@@ -67,6 +304,7 @@ export default function BuidcoDashboard() {
   const dateStr = now.toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
 
   const activeTenderProjects = projects.filter(p=>ACTIVE_TENDER_PHASES.includes(p.phase));
+  const tenderWorksProjects  = activeTenderProjects.filter(p=>CONSTRUCTION_SECTOR_CODES.includes(p.sector_code));
   const preMonsoonFlags      = managementFlags.filter(f=>f.is_pre_monsoon);
   const cosCategories        = [...new Set(cosEotRows.map(d=>d.cos_category))];
   const filteredCos = cosEotRows.filter(d=>{
@@ -107,7 +345,7 @@ export default function BuidcoDashboard() {
     const filterOk = Object.entries(modalFilters).every(([k,v])=>!v||v==="ALL"||String(p[k]||"")===v);
     return delayOk && filterOk;
   });
-  const filteredTenderProjects = activeTenderProjects.filter(p=>
+  const filteredTenderProjects = tenderWorksProjects.filter(p=>
     Object.entries(tenderFilters).every(([k,v])=>!v||v==="ALL"||String(p[k]||"")===v)
   );
   const filteredMgmtFlags = managementFlags.filter(f=>
@@ -155,6 +393,17 @@ export default function BuidcoDashboard() {
     setShowEditModal(false);
   };
 
+  const saveMdInputForm = () => {
+    if (!mdInputProject) return;
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.project_id === mdInputProject.project_id ? { ...p, ...mdInputForm } : p
+      )
+    );
+    setMdInputSaved(true);
+    setTimeout(() => setMdInputSaved(false), 1500);
+  };
+
   const tabs = [
     {id:"overview",    label:"Overview"},
     {id:"sectors",     label:"Sectors"},
@@ -162,6 +411,7 @@ export default function BuidcoDashboard() {
     {id:"districts",   label:"Districts"},
     {id:"cos_eot",     label:"CoS / EoT"},
     {id:"mgmt_action", label:"Management Action"},
+    {id:"md_input",    label:"MD Input Sheet"},
   ];
 
   const F = ({label,field,type="text",options}) => (
@@ -297,27 +547,188 @@ export default function BuidcoDashboard() {
               <KpiCard label="Total Sanctioned"   value={fmtCr(totalCost)}     sub="current approved cost"                accent={C.purple} icon="📋"/>
               <KpiCard label="Total Expenditure"  value={fmtCr(Math.round(totalSpent))} sub={`${finPct}% utilised — click for breakup`} accent={C.green} icon="💰" onClick={()=>setShowExpenditureModal(true)}/>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:28}}>
-              <KpiCard label="Active Tenders"           value={activeTenderProjects.length}    sub="Conceptualization to Post-Tender"  accent={C.teal}   icon="📄" onClick={()=>setShowTendersModal(true)}/>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16,marginBottom:16}}>
+              <KpiCard label="Tender Works"             value={tenderWorksProjects.length}     sub="Construction & Maintenance tenders" accent={C.teal}   icon="📄" onClick={()=>setShowTendersModal(true)}/>
               <KpiCard label="Pre-Monsoon Preparations" value={preMonsoonFlags.length}         sub="urgent flags requiring action"    accent={C.red}    icon="⛈" badge={`${preMonsoonFlags.filter(f=>f.severity==="CRITICAL").length} CRITICAL`} onClick={()=>setShowMonsoonModal(true)}/>
-              <KpiCard label="Districts Active"         value={districts.length}               sub="Click Districts tab for details"  accent={C.orange} icon="📍" onClick={()=>setActiveTab("districts")}/>
+              <KpiCard label="Tender Services"          value={PSO_PMU_TENDERS.length}         sub="PSO/PMU consultancy tenders"      accent={C.purple} icon="🏛" onClick={()=>setShowServiceTendersModal(true)}/>
             </div>
 
-            <div onClick={()=>setShowFinUtilModal(true)} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px 24px",marginBottom:28,boxShadow:"0 1px 4px rgba(13,33,55,.05)",cursor:"pointer",transition:"box-shadow .15s"}}
-              onMouseEnter={e=>e.currentTarget.style.boxShadow="0 6px 20px rgba(13,33,55,.12)"}
-              onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 4px rgba(13,33,55,.05)"}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
-                <span style={{fontSize:13,fontWeight:600,color:C.text1}}>Portfolio Financial Utilisation <span style={{fontSize:11,color:C.blue,fontWeight:400}}>(click for district & sector breakup)</span></span>
-                <span style={{fontFamily:"'DM Mono',monospace",fontSize:15,color:C.green,fontWeight:600}}>{finPct}%</span>
-              </div>
-              <div style={{background:"#E8EBF2",borderRadius:6,height:10,overflow:"hidden"}}>
-                <div style={{width:`${finPct}%`,height:"100%",background:`linear-gradient(90deg,${C.blue},${C.green})`,borderRadius:6,transition:"width .8s"}}/>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}>
-                <span style={{fontSize:11,color:C.text4}}>₹ 0</span>
-                <span style={{fontSize:11,color:C.text4}}>{fmtCr(totalCost)} (Target)</span>
-              </div>
+            {/* Current Stage in Active Projects (v26) */}
+            <div style={{background:"linear-gradient(135deg,#EEF3FF 0%,#F0FBF7 100%)",border:`1px solid ${C.border}`,borderRadius:16,padding:"22px 24px",marginBottom:20,boxShadow:"0 1px 6px rgba(13,33,55,.06)"}}>
+              {(()=>{
+                const STAGE_PALETTE = {
+                  "Conceptualization": { bg:"#1E3A5F", accent:"#4A90D9", label:"#A8C8F0" },
+                  "Pre-Tender":        { bg:"#1A4731", accent:"#34A853", label:"#7ED4A0" },
+                  "Tender":            { bg:"#3D2B00", accent:"#F59E0B", label:"#FCD06A" },
+                  "Post-Tender":       { bg:"#2D1B4E", accent:"#8B5CF6", label:"#C4B0F8" },
+                  "Construction":      { bg:"#1F3A4A", accent:"#06B6D4", label:"#93E4F4" },
+                  "O&M":               { bg:"#1A3328", accent:"#10B981", label:"#6EE7C0" },
+                  "Completed":         { bg:"#2D2D2D", accent:"#9CA3AF", label:"#D1D5DB" },
+                };
+                const stageData = STAGE_ORDER.map(stage=>{
+                  const projs = projects.filter(p=>p.phase===stage);
+                  return {stage, count:projs.length, sanctioned:projs.reduce((a,p)=>a+p.current_sanctioned_cost,0), delayed:projs.filter(p=>p.delay_days>0).length};
+                }).filter(d=>d.count>0);
+                const maxCount = Math.max(...stageData.map(d=>d.count),1);
+                return (
+                  <>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                      <div>
+                        <span style={{fontSize:13,fontWeight:700,color:C.text1}}>Current Stage in Active Projects</span>
+                        <span style={{fontSize:11,color:C.text3,marginLeft:8}}>All {projects.length} projects</span>
+                      </div>
+                      <span style={{fontSize:10,color:C.blue,fontWeight:500,letterSpacing:".02em"}}>STAGE DISTRIBUTION</span>
+                    </div>
+                    <div style={{fontSize:10,color:C.text4,marginBottom:14}}>Click a stage card to filter in Projects tab</div>
+                    <div style={{display:"flex",gap:10,alignItems:"stretch"}}>
+                      {stageData.map(d=>{
+                        const pal  = STAGE_PALETTE[d.stage] || STAGE_PALETTE["Completed"];
+                        return (
+                          <div key={d.stage}
+                            onClick={()=>{ setActiveTab("projects"); projTable.setSearch(""); projTable.setFilters({ phase: d.stage }); }}
+                            style={{
+                              flex:1, cursor:"pointer", borderRadius:12,
+                              background:pal.bg,
+                              border:`1px solid ${pal.accent}40`,
+                              boxShadow:"0 2px 8px rgba(0,0,0,.10)",
+                              transition:"transform .18s, box-shadow .18s",
+                              display:"flex", flexDirection:"column",
+                              overflow:"hidden", minWidth:0,
+                            }}>
+                            <div style={{padding:"14px 14px 10px", display:"flex", justifyContent:"space-between", alignItems:"flex-start"}}>
+                              <span style={{fontFamily:"'DM Mono',monospace",fontSize:26,fontWeight:800,color:"#fff",lineHeight:1}}>{d.count}</span>
+                              {d.delayed>0&&(
+                                <span style={{background:C.red,color:"#fff",borderRadius:20,fontSize:9,padding:"2px 7px",fontWeight:700,lineHeight:1.5,whiteSpace:"nowrap"}}>
+                                  {d.delayed} ⚠
+                                </span>
+                              )}
+                            </div>
+                            <div style={{margin:"0 14px",background:"rgba(255,255,255,.08)",borderRadius:4,height:4,overflow:"hidden",marginBottom:10}}>
+                              <div style={{width:`${Math.round(d.count/maxCount*100)}%`,height:"100%",background:pal.accent,borderRadius:4,transition:"width .6s"}}/>
+                            </div>
+                            <div style={{padding:"0 14px 8px"}}>
+                              <div style={{fontSize:11,fontWeight:700,color:"#fff",lineHeight:1.3,letterSpacing:".01em"}}>{d.stage}</div>
+                            </div>
+                            <div style={{marginTop:"auto",padding:"8px 14px",background:"rgba(0,0,0,.18)",borderTop:`1px solid ${pal.accent}25`}}>
+                              <span style={{fontSize:9,fontFamily:"'DM Mono',monospace",color:pal.label,letterSpacing:".02em"}}>{fmtCr(d.sanctioned)}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
+
+            {/* Financial utilisation + physical progress (v26 style) */}
+            {(()=>{
+              const avgPhys = projects.length>0?Math.round(projects.reduce((a,p)=>a+p.actual_physical_pct,0)/projects.length):0;
+              const avgSched= projects.length>0?Math.round(projects.reduce((a,p)=>a+p.scheduled_physical_pct,0)/projects.length):0;
+              const physBehind = avgPhys < avgSched;
+              return (
+                <div style={{background:"linear-gradient(135deg,#EEF3FF 0%,#F0FBF7 100%)",border:`1px solid ${C.border}`,borderRadius:16,padding:"22px 24px",marginBottom:20,boxShadow:"0 1px 6px rgba(13,33,55,.06)"}}>
+                  <div onClick={()=>setShowFinUtilModal(true)} style={{cursor:"pointer",marginBottom:22}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+                      <div>
+                        <span style={{fontSize:13,fontWeight:700,color:C.text1}}>Portfolio Financial Utilisation</span>
+                        <span style={{fontSize:11,color:C.blue,fontWeight:400,marginLeft:8}}>(click for district &amp; sector breakup)</span>
+                      </div>
+                      <span style={{fontFamily:"'DM Mono',monospace",fontSize:16,color:C.green,fontWeight:700}}>{finPct}%</span>
+                    </div>
+                    <div style={{background:"rgba(13,33,55,.10)",borderRadius:8,height:12,overflow:"hidden"}}>
+                      <div style={{width:`${finPct}%`,height:"100%",background:`linear-gradient(90deg,${C.blue},${C.green})`,borderRadius:8,transition:"width .8s"}}/>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",marginTop:5}}>
+                      <span style={{fontSize:11,color:C.text3}}>₹ 0</span>
+                      <span style={{fontSize:11,color:C.text3}}>{fmtCr(totalCost)} (Target)</span>
+                    </div>
+                  </div>
+
+                  <div style={{height:1,background:`${C.border}`,marginBottom:20,opacity:.6}}/>
+
+                  <div onClick={()=>setShowPhysProgressModal(true)} style={{cursor:"pointer"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+                      <div>
+                        <span style={{fontSize:13,fontWeight:700,color:C.text1}}>Portfolio Physical Progress</span>
+                        <span style={{fontSize:11,color:C.blue,fontWeight:400,marginLeft:8}}>(click for sector &amp; district breakup)</span>
+                      </div>
+                      <div style={{display:"flex",gap:14,alignItems:"center"}}>
+                        <span style={{fontSize:11,color:C.text3}}>Actual: <span style={{fontFamily:"'DM Mono',monospace",fontWeight:700,color:pctColor(avgPhys)}}>{avgPhys}%</span></span>
+                        <span style={{fontSize:11,color:C.text3}}>Scheduled: <span style={{fontFamily:"'DM Mono',monospace",fontWeight:700,color:C.blue}}>{avgSched}%</span></span>
+                        {physBehind
+                          ? <span style={{background:C.redSoft,color:C.red,border:`1px solid ${C.red}30`,borderRadius:4,padding:"2px 10px",fontSize:10,fontWeight:700}}>⚠ {avgSched-avgPhys}% behind schedule</span>
+                          : <span style={{background:C.greenSoft,color:C.green,border:`1px solid ${C.green}30`,borderRadius:4,padding:"2px 10px",fontSize:10,fontWeight:700}}>✓ On / Ahead of Schedule</span>
+                        }
+                      </div>
+                    </div>
+                    <div style={{position:"relative",background:"rgba(13,33,55,.10)",borderRadius:8,height:18,overflow:"hidden",marginBottom:6}}>
+                      <div style={{position:"absolute",left:0,top:0,height:"100%",width:`${avgSched}%`,background:`${C.blue}30`,borderRadius:8,transition:"width .8s"}}/>
+                      <div style={{position:"absolute",left:0,top:0,height:"100%",width:`${avgPhys}%`,background:`linear-gradient(90deg,${pctColor(avgPhys)},${pctColor(avgPhys)}CC)`,borderRadius:8,transition:"width .8s",display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6}}>
+                        {avgPhys>10&&<span style={{fontFamily:"'DM Mono',monospace",fontSize:10,fontWeight:800,color:"white"}}>{avgPhys}%</span>}
+                      </div>
+                      {avgSched>0&&avgSched<=100&&(
+                        <div style={{position:"absolute",top:0,left:`${avgSched}%`,width:2,height:"100%",background:C.blue,opacity:.7,transform:"translateX(-1px)"}}/>
+                      )}
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
+                      <div style={{display:"flex",gap:14}}>
+                        <span style={{fontSize:10,color:C.text3,display:"flex",alignItems:"center",gap:4}}>
+                          <span style={{width:12,height:6,borderRadius:2,background:pctColor(avgPhys),display:"inline-block"}}/> Actual {avgPhys}%
+                        </span>
+                        <span style={{fontSize:10,color:C.text3,display:"flex",alignItems:"center",gap:4}}>
+                          <span style={{width:2,height:12,background:C.blue,display:"inline-block",opacity:.7}}/> Scheduled {avgSched}%
+                        </span>
+                      </div>
+                      <span style={{fontSize:10,color:C.blue,fontWeight:600}}>VIEW DETAIL →</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Finance & Payments — lightweight summary (opens detailed modal) */}
+            {(()=>{
+              const totalContract = projects.reduce((a,p)=>a+(Number(p.contract_value_lakhs)||0),0);
+              const totalPaid     = projects.reduce((a,p)=>a+(Number(p.payments_made_lakhs)||0),0);
+              const paidPct       = totalContract>0?Math.round(totalPaid/totalContract*100):0;
+              const alertCount    = projects.filter(p=>p.pbg_expiry_date && p.pbg_amount_lakhs>0).length;
+              return (
+                <div style={{background:"linear-gradient(135deg,#EFF9FB 0%,#F3EFFE 100%)",border:`1px solid ${C.border}`,borderRadius:16,padding:"20px 24px",marginBottom:28,boxShadow:"0 1px 6px rgba(13,33,55,.06)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <span style={{background:C.teal,color:"white",borderRadius:8,padding:"3px 12px",fontSize:11,fontWeight:700}}>🏦 Finance &amp; Payments</span>
+                      <span style={{fontSize:11,color:C.text3}}>{projects.filter(p=>Number(p.payments_made_lakhs||0)>0).length} projects with payment data</span>
+                    </div>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      {alertCount>0&&(
+                        <span style={{background:C.redSoft,color:C.red,border:`1px solid ${C.red}30`,borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700}}>
+                          ⚠ Review PBG/EMD/Payments
+                        </span>
+                      )}
+                      <button onClick={()=>setShowFinanceModal(true)} style={{padding:"5px 14px",fontSize:11,fontWeight:600,borderRadius:8,cursor:"pointer",border:`1px solid ${C.teal}`,background:C.teal,color:"white"}}>
+                        Full Detail →
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+                    {[
+                      ["Contract Value (₹ L)", totalContract, C.purple],
+                      ["Paid to Date (₹ L)", totalPaid, C.green],
+                      ["Paid %", paidPct, pctColor(paidPct)],
+                      ["Projects w/ PBG", projects.filter(p=>Number(p.pbg_amount_lakhs||0)>0).length, C.amber],
+                    ].map(([label,val,col])=>(
+                      <div key={label} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:"14px 18px"}}>
+                        <div style={{fontSize:10,color:C.text3,fontWeight:600,textTransform:"uppercase",letterSpacing:".07em",marginBottom:6}}>{label}</div>
+                        <div style={{fontFamily:"'DM Mono',monospace",fontSize:17,fontWeight:700,color:col,lineHeight:1}}>
+                          {label==="Paid %"?`${val}%`:fmtLakhInt(val)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:20}}>
               <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px 24px",boxShadow:"0 1px 4px rgba(13,33,55,.05)"}}>
@@ -455,6 +866,248 @@ export default function BuidcoDashboard() {
 
         {activeTab==="projects"&&selectedProject&&(
           <ProjectDetail project={selectedProject} onBack={()=>setSelectedProject(null)} onEdit={p=>{setEditProject(p);setEditForm({...p});setShowEditModal(true)}} canEdit={perms.can_edit}/>
+        )}
+
+        {/* ── MD INPUT SHEET ────────────────────────────────────────────── */}
+        {activeTab==="md_input"&&userRole==="MD"&&(()=>{
+          const mdProjects = projects.filter(p=>{
+            const sOk = mdSectorFilter==="ALL"||p.sector_code===mdSectorFilter;
+            const qOk = !mdInputSearch
+              || p.project_name.toLowerCase().includes(mdInputSearch.toLowerCase())
+              || p.project_code.toLowerCase().includes(mdInputSearch.toLowerCase())
+              || p.district.toLowerCase().includes(mdInputSearch.toLowerCase());
+            return sOk&&qOk;
+          });
+          return (
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+                <div>
+                  <h1 style={{fontSize:22,fontWeight:700,color:C.text1,fontFamily:"'DM Serif Display',serif"}}>📋 MD Input Sheet</h1>
+                  <p style={{fontSize:13,color:C.text3,marginTop:4}}>Manage key project details across the portfolio. (Local UI state only for now.)</p>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{background:C.amberSoft,border:`1px solid ${C.amber}30`,borderRadius:8,padding:"8px 16px",fontSize:12,color:C.amber,fontWeight:600}}>🔒 MD Access Only</div>
+                  {mdInputProject&&(
+                    <button className="btn-primary" onClick={()=>{setMdInputProject(null);setMdInputForm({});}}>← Back to Project List</button>
+                  )}
+                </div>
+              </div>
+
+              {/* Project list */}
+              {!mdInputProject&&(
+                <>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 20px",marginBottom:16,display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
+                    <input type="text" placeholder="Search projects…" value={mdInputSearch} onChange={e=>setMdInputSearch(e.target.value)} style={{width:260}}/>
+                    <select value={mdSectorFilter} onChange={e=>setMdSectorFilter(e.target.value)}>
+                      <option value="ALL">All Sectors</option>
+                      {sectorCards.map(s=><option key={s.sector_code} value={s.sector_code}>{s.sector_icon} {s.sector_name}</option>)}
+                    </select>
+                    {perms.can_add&&<button className="btn-primary" onClick={openAddModal}>+ Add New Project</button>}
+                    <span style={{marginLeft:"auto",fontSize:12,color:C.text3}}>{mdProjects.length} projects</span>
+                  </div>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,overflow:"auto"}}>
+                    <table>
+                      <thead>
+                        <tr style={{background:C.surfaceAlt}}>
+                          {["Project Code","Project Name","Sector","District","Phase","Physical %","Financial %","Sanctioned (Cr)","Delay (days)","Status","Action"].map(h=>(
+                            <th key={h} style={{padding:"10px 14px",fontSize:11,fontWeight:700,color:C.text2,textTransform:"uppercase",letterSpacing:".05em",borderBottom:`2px solid ${C.border}`,whiteSpace:"nowrap"}}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {mdProjects.map(p=>(
+                          <tr key={p.project_id}>
+                            <td style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:C.text4}}>{p.project_code}</td>
+                            <td style={{fontWeight:600,color:C.text1,maxWidth:200}}>{p.project_name}</td>
+                            <td><Badge color={C.teal}>{p.sector_icon} {p.sector_name}</Badge></td>
+                            <td style={{fontSize:12,color:C.text2}}>{p.district}</td>
+                            <td><Pill color={PHASE_COLOR[p.phase]||C.text3}>{p.phase}</Pill></td>
+                            <td><span style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:pctColor(p.actual_physical_pct),fontWeight:700}}>{p.actual_physical_pct}%</span></td>
+                            <td><span style={{fontFamily:"'DM Mono',monospace",fontSize:13,color:pctColor(p.financial_progress_pct),fontWeight:700}}>{p.financial_progress_pct}%</span></td>
+                            <td style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:C.purple,fontWeight:600}}>{fmtCr(p.current_sanctioned_cost)}</td>
+                            <td>{p.delay_days>0?<Pill color={C.red}>{p.delay_days}d</Pill>:<Pill color={C.green}>0</Pill>}</td>
+                            <td><Badge color={p.status==="STALLED"?C.red:p.status==="COMPLETED"?C.green:C.blue}>{p.status}</Badge></td>
+                            <td>
+                              <button className="btn-primary" style={{padding:"5px 14px",fontSize:12}} onClick={()=>{setMdInputProject(p);setMdInputForm({...p});}}>✏ Edit</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              {/* Edit form */}
+              {mdInputProject&&(()=>{
+                const projCos = mdCosData.filter(c => c.project_id === mdInputProject.project_id);
+
+                const updateCos = (uid, fkey, val) => {
+                  setMdCosData(prev => prev.map(c => c._uid === uid ? { ...c, [fkey]: val } : c));
+                };
+
+                const addCosRow = () => {
+                  const existing = mdCosData.filter(c => c.project_id === mdInputProject.project_id);
+                  const newNum = existing.length + 1;
+                  const newRow = {
+                    _uid: Date.now(),
+                    project_id: mdInputProject.project_id,
+                    project_code: mdInputProject.project_code,
+                    cos_number: `CoS-0${newNum}`,
+                    cos_date: new Date().toISOString().slice(0,10),
+                    cos_category: "SCOPE ADDITION",
+                    cos_amount: 0,
+                    cos_pct_variation: 0,
+                    is_time_linked: false,
+                    eot_number: `EoT-0${newNum}`,
+                    eot_days_granted: 0,
+                    original_end_date: mdInputProject.planned_end_date || "",
+                    new_end_date: "",
+                    revised_date: "",
+                  };
+                  setMdCosData(prev => [...prev, newRow]);
+                };
+
+                const removeCosRow = uid => setMdCosData(prev => prev.filter(c => c._uid !== uid));
+
+                return (
+                  <div>
+                    {/* Sticky header bar */}
+                    <div style={{position:"sticky",top:62,zIndex:50,display:"flex",alignItems:"center",gap:12,marginBottom:20,background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"14px 20px",boxShadow:"0 2px 8px rgba(13,33,55,.08)"}}>
+                      <div style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:C.text4,background:C.surfaceAlt,border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",whiteSpace:"nowrap"}}>{mdInputProject.project_code}</div>
+                      <span style={{fontSize:15,fontWeight:700,color:C.text1,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{mdInputProject.project_name}</span>
+                      {mdInputSaved&&(
+                        <span style={{background:C.greenSoft,border:`1px solid ${C.green}40`,color:C.green,fontSize:12,fontWeight:700,padding:"6px 14px",borderRadius:8,whiteSpace:"nowrap",flexShrink:0}}>
+                          ✓ Saved — Dashboard updated
+                        </span>
+                      )}
+                      <button className="btn-primary" style={{padding:"9px 22px",fontSize:13,whiteSpace:"nowrap",flexShrink:0}} onClick={saveMdInputForm}>✓ Save All Changes</button>
+                      <button className="btn-ghost" style={{whiteSpace:"nowrap",flexShrink:0}} onClick={()=>{setMdInputProject(null);setMdInputForm({});}}>✕ Cancel</button>
+                    </div>
+
+                    {/* SECTION 01 */}
+                    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"22px 24px",marginBottom:14}}>
+                      <div style={{fontSize:12,fontWeight:700,color:C.navy,marginBottom:18,paddingBottom:10,borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10}}>
+                        <span style={{background:C.navy,color:"#fff",borderRadius:6,padding:"2px 10px",fontSize:11,fontWeight:700}}>01</span>
+                        Core Project Identity
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+                        <MdField label="Project Code (read-only)" fkey="project_code" readOnly form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="Project Name ✱" fkey="project_name" span2 form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="Sector" fkey="sector_code" options={sectorCards.map(s=>({v:s.sector_code,l:`${s.sector_icon} ${s.sector_name}`}))} form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="District" fkey="district" options={DISTRICTS.map(d=>({v:d,l:d}))} form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="ULB / City" fkey="ulb_name" form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="Contractor Name" fkey="contractor_name" span2 form={mdInputForm} setForm={setMdInputForm}/>
+                      </div>
+                    </div>
+
+                    {/* SECTION 02 */}
+                    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"22px 24px",marginBottom:14}}>
+                      <div style={{fontSize:12,fontWeight:700,color:C.navy,marginBottom:18,paddingBottom:10,borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10}}>
+                        <span style={{background:"#1E3A5F",color:"#A8C8F0",borderRadius:6,padding:"2px 10px",fontSize:11,fontWeight:700}}>02</span>
+                        Phase, Status &amp; Dates
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+                        <MdField label="Current Phase" fkey="phase" options={PROJECT_PHASES.map(p=>({v:p,l:p}))} form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="Project Status" fkey="status" options={["DPR_STAGE","TENDERING","AWARDED","IN_PROGRESS","STALLED","COMPLETED","CANCELLED"].map(s=>({v:s,l:s}))} form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="Planned End Date" fkey="planned_end_date" type="date" form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="Revised End Date" fkey="revised_end_date" type="date" form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="Delay (Days)" fkey="delay_days" type="number" form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="Delay Reason / Root Cause" fkey="delay_reason" form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="Department / Agency Stuck At" fkey="dept_stuck" form={mdInputForm} setForm={setMdInputForm}/>
+                      </div>
+                    </div>
+
+                    {/* SECTION 03 */}
+                    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"22px 24px",marginBottom:14}}>
+                      <div style={{fontSize:12,fontWeight:700,color:C.navy,marginBottom:18,paddingBottom:10,borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10}}>
+                        <span style={{background:"#1A4731",color:"#7ED4A0",borderRadius:6,padding:"2px 10px",fontSize:11,fontWeight:700}}>03</span>
+                        Progress &amp; Financial
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+                        <MdField label="Sanctioned Cost (₹ Lakhs) ✱" fkey="current_sanctioned_cost" type="number" form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="Physical Progress % (Actual)" fkey="actual_physical_pct" type="number" form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="Physical Progress % (Scheduled)" fkey="scheduled_physical_pct" type="number" form={mdInputForm} setForm={setMdInputForm}/>
+                        <MdField label="Financial Progress %" fkey="financial_progress_pct" type="number" form={mdInputForm} setForm={setMdInputForm}/>
+                        <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                          <label style={{fontSize:11,color:C.text3,fontWeight:600,textTransform:"uppercase",letterSpacing:".05em"}}>Total CoS Count</label>
+                          <div style={{background:C.surfaceAlt,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:C.purple,fontWeight:700,fontFamily:"'DM Mono',monospace"}}>
+                            {projCos.length} (auto)
+                          </div>
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                          <label style={{fontSize:11,color:C.text3,fontWeight:600,textTransform:"uppercase",letterSpacing:".05em"}}>Total EoT Days</label>
+                          <div style={{background:C.surfaceAlt,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:C.blue,fontWeight:700,fontFamily:"'DM Mono',monospace"}}>
+                            {projCos.reduce((a,c)=>a+(parseFloat(c.eot_days_granted)||0),0)} d (auto)
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SECTION 04 */}
+                    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"22px 24px",marginBottom:20}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,paddingBottom:10,borderBottom:`1px solid ${C.border}`}}>
+                        <div style={{fontSize:12,fontWeight:700,color:C.navy,display:"flex",alignItems:"center",gap:10}}>
+                          <span style={{background:"#3D2B00",color:"#FCD06A",borderRadius:6,padding:"2px 10px",fontSize:11,fontWeight:700}}>04</span>
+                          Change of Scope (CoS) &amp; Extension of Time (EoT)
+                        </div>
+                        <button onClick={addCosRow} className="btn-primary" style={{padding:"6px 16px",fontSize:12}}>+ Add CoS</button>
+                      </div>
+
+                      {projCos.length === 0 && (
+                        <div style={{textAlign:"center",padding:"28px 0",color:C.text3,fontSize:13,background:C.surfaceAlt,borderRadius:8}}>
+                          No CoS / EoT records yet — click <strong>+ Add CoS</strong> to create one
+                        </div>
+                      )}
+
+                      {projCos.map((cos, idx) => (
+                        <div key={cos._uid} style={{border:`1px solid ${C.border}`,borderLeft:`4px solid ${C.purple}`,borderRadius:10,padding:"18px 20px",marginBottom:12,background:C.surfaceAlt}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                            <div style={{display:"flex",alignItems:"center",gap:10}}>
+                              <span style={{background:C.purple,color:"#fff",borderRadius:20,padding:"3px 12px",fontSize:12,fontWeight:700}}>{cos.cos_number || `CoS-0${idx+1}`}</span>
+                              <span style={{fontSize:11,color:C.text3}}>Change of Scope #{idx+1}</span>
+                            </div>
+                            <button onClick={()=>removeCosRow(cos._uid)} style={{background:"none",border:`1px solid ${C.red}30`,color:C.red,borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:11,fontWeight:600}}>✕ Remove</button>
+                          </div>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:12,marginBottom:12}}>
+                            <CosField label="CoS Number" fkey="cos_number" row={cos} onChange={(k,v)=>updateCos(cos._uid,k,v)}/>
+                            <CosField label="CoS Date" fkey="cos_date" type="date" row={cos} onChange={(k,v)=>updateCos(cos._uid,k,v)}/>
+                            <CosField label="Category" fkey="cos_category" options={["SCOPE ADDITION","DESIGN CHANGE","QTY VARIATION","FORCE MAJEURE","COURT ORDER","PRICE ESCALATION"].map(o=>({v:o,l:o}))} row={cos} onChange={(k,v)=>updateCos(cos._uid,k,v)}/>
+                            <CosField label="CoS Amount (₹ Lakhs)" fkey="cos_amount" type="number" row={cos} onChange={(k,v)=>updateCos(cos._uid,k,v)}/>
+                          </div>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:12,marginBottom:12}}>
+                            <CosField label="Variation %" fkey="cos_pct_variation" type="number" row={cos} onChange={(k,v)=>updateCos(cos._uid,k,v)}/>
+                            <CosField label="EoT Number" fkey="eot_number" row={cos} onChange={(k,v)=>updateCos(cos._uid,k,v)}/>
+                            <CosField label="EoT Days Granted" fkey="eot_days_granted" type="number" row={cos} onChange={(k,v)=>updateCos(cos._uid,k,v)}/>
+                            <CosField label="Time Linked?" fkey="is_time_linked" options={[{v:"true",l:"Yes — EoT Linked"},{v:"false",l:"No"}]} row={{...cos, is_time_linked: String(cos.is_time_linked)}} onChange={(k,v)=>updateCos(cos._uid,k,v==="true")}/>
+                          </div>
+                          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+                            <CosField label="Original End Date" fkey="original_end_date" type="date" row={cos} onChange={(k,v)=>updateCos(cos._uid,k,v)}/>
+                            <CosField label="New End Date (after EoT)" fkey="new_end_date" type="date" row={cos} onChange={(k,v)=>updateCos(cos._uid,k,v)}/>
+                            <CosField label="Revised Date (if different)" fkey="revised_date" type="date" row={cos} onChange={(k,v)=>updateCos(cos._uid,k,v)}/>
+                          </div>
+                        </div>
+                      ))}
+
+                      <div style={{display:"flex",gap:14,alignItems:"center",padding:"20px 0 10px"}}>
+                        <button className="btn-primary" style={{padding:"12px 36px",fontSize:14}} onClick={saveMdInputForm}>✓ Save All Changes</button>
+                        <button className="btn-ghost" style={{padding:"12px 22px"}} onClick={()=>{setMdInputProject(null);setMdInputForm({});}}>Cancel</button>
+                        {mdInputSaved&&<span style={{color:C.green,fontSize:13,fontWeight:600}}>✓ Saved</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          );
+        })()}
+
+        {activeTab==="md_input"&&userRole!=="MD"&&(
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:320,gap:16}}>
+            <div style={{fontSize:48}}>🔒</div>
+            <div style={{fontSize:18,fontWeight:700,color:C.text1}}>Access Restricted</div>
+            <div style={{fontSize:13,color:C.text3}}>The MD Input Sheet is accessible only to the Managing Director.</div>
+          </div>
         )}
 
         {/* ── DISTRICTS ─────────────────────────────────────────────────── */}
@@ -694,11 +1347,11 @@ export default function BuidcoDashboard() {
       )}
 
       {showTendersModal&&(
-        <Modal title={`Active Tenders — ${activeTenderProjects.length} Projects`} subtitle="Projects in pre-construction phases" onClose={()=>setShowTendersModal(false)}>
+        <Modal title={`Tender Works — ${tenderWorksProjects.length} Projects`} subtitle="Construction & maintenance projects in pre-construction phases" onClose={()=>setShowTendersModal(false)}>
           <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
             {ACTIVE_TENDER_PHASES.map(ph=>(
               <div key={ph} style={{background:PHASE_COLOR[ph]+"15",border:`1px solid ${PHASE_COLOR[ph]}30`,borderRadius:20,padding:"4px 14px",fontSize:12,color:PHASE_COLOR[ph],fontWeight:600}}>
-                {ph}: {activeTenderProjects.filter(p=>p.phase===ph).length}
+                {ph}: {tenderWorksProjects.filter(p=>p.phase===ph).length}
               </div>
             ))}
           </div>
@@ -708,7 +1361,7 @@ export default function BuidcoDashboard() {
                 <ModalFilterRow
                   columns={["Project","Sector","District","Phase","Sanctioned Cost","Planned End"]}
                   filterFields={[null,"sector_name","district","phase",null,null]}
-                  data={activeTenderProjects} modalFilters={tenderFilters} setModalFilters={setTenderFilters}
+                  data={tenderWorksProjects} modalFilters={tenderFilters} setModalFilters={setTenderFilters}
                 />
               </thead>
               <tbody>
@@ -722,6 +1375,136 @@ export default function BuidcoDashboard() {
                     <td style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:C.text3}}>{p.planned_end_date}</td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </Modal>
+      )}
+
+      {showServiceTendersModal&&(
+        <Modal title={`Tender Services — ${PSO_PMU_TENDERS.length} Tenders`} subtitle="PSO / PMU consultancy & advisory tenders" onClose={()=>setShowServiceTendersModal(false)} width={1050}>
+          <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,overflow:"auto"}}>
+            <table style={{minWidth:980}}>
+              <thead>
+                <tr style={{background:C.surfaceAlt}}>
+                  {["Tender Ref","Tender Name","District","Category","Est. Cost (₹ L)","Floated","Status","Type"].map(h=>(
+                    <th key={h} style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:C.text2,letterSpacing:".05em",textTransform:"uppercase",borderBottom:`2px solid ${C.border}`,whiteSpace:"nowrap"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {PSO_PMU_TENDERS.map(t=>(
+                  <tr key={t.tender_id}>
+                    <td style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:C.text4}}>{t.tender_ref}</td>
+                    <td style={{fontWeight:600,color:C.text1,maxWidth:360}}>{t.tender_name}</td>
+                    <td style={{fontSize:12,color:C.text2}}>{t.district}</td>
+                    <td><Badge color={C.teal}>{t.category}</Badge></td>
+                    <td style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:C.purple,fontWeight:700}}>{fmtLakhInt(t.estimated_cost_lakhs)}</td>
+                    <td style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:C.text3}}>{t.floated_date}</td>
+                    <td><Pill color={PHASE_COLOR[t.status]||C.blue}>{t.status}</Pill></td>
+                    <td><Badge color={C.text3}>{t.agency_type}</Badge></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Modal>
+      )}
+
+      {showPhysProgressModal&&(()=>{
+        const sectorRows = sectorCards.map(s=>{
+          const ps = projects.filter(p=>p.sector_code===s.sector_code);
+          const avgAct = ps.length?Math.round(ps.reduce((a,p)=>a+p.actual_physical_pct,0)/ps.length):0;
+          const avgSch = ps.length?Math.round(ps.reduce((a,p)=>a+p.scheduled_physical_pct,0)/ps.length):0;
+          return { ...s, count: ps.length, avgAct, avgSch, gap: avgSch-avgAct };
+        }).sort((a,b)=>b.gap-a.gap);
+        const distRows = districts.map(d=>{
+          const ps = projects.filter(p=>p.district===d.name);
+          const avgAct = ps.length?Math.round(ps.reduce((a,p)=>a+p.actual_physical_pct,0)/ps.length):0;
+          const avgSch = ps.length?Math.round(ps.reduce((a,p)=>a+p.scheduled_physical_pct,0)/ps.length):0;
+          return { ...d, avgAct, avgSch, gap: avgSch-avgAct, count: ps.length };
+        }).sort((a,b)=>b.gap-a.gap);
+        return (
+          <Modal title="Portfolio Physical Progress" subtitle="Actual vs scheduled (averages) by sector and district" onClose={()=>setShowPhysProgressModal(false)} width={1100}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+              <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
+                <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:700,color:C.text1}}>By Sector</div>
+                <table>
+                  <thead><tr style={{background:C.surfaceAlt}}>
+                    {["Sector","Projects","Actual %","Scheduled %","Gap"].map(h=>(
+                      <th key={h} style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:C.text2,letterSpacing:".05em",textTransform:"uppercase",borderBottom:`2px solid ${C.border}`,whiteSpace:"nowrap"}}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {sectorRows.map(r=>(
+                      <tr key={r.sector_code}>
+                        <td style={{fontWeight:700,color:C.text1}}>{r.sector_icon} {r.sector_name}</td>
+                        <td><Badge color={C.blue}>{r.count}</Badge></td>
+                        <td style={{fontFamily:"'DM Mono',monospace",color:pctColor(r.avgAct),fontWeight:700}}>{r.avgAct}%</td>
+                        <td style={{fontFamily:"'DM Mono',monospace",color:C.blue,fontWeight:700}}>{r.avgSch}%</td>
+                        <td style={{fontFamily:"'DM Mono',monospace",color:r.gap>0?C.red:C.green,fontWeight:800}}>{r.gap>0?`-${r.gap}%`:`+${Math.abs(r.gap)}%`}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
+                <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:700,color:C.text1}}>By District</div>
+                <table>
+                  <thead><tr style={{background:C.surfaceAlt}}>
+                    {["District","Projects","Actual %","Scheduled %","Gap"].map(h=>(
+                      <th key={h} style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:C.text2,letterSpacing:".05em",textTransform:"uppercase",borderBottom:`2px solid ${C.border}`,whiteSpace:"nowrap"}}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {distRows.map(r=>(
+                      <tr key={r.name}>
+                        <td style={{fontWeight:700,color:C.text1}}>📍 {r.name}</td>
+                        <td><Badge color={C.blue}>{r.count}</Badge></td>
+                        <td style={{fontFamily:"'DM Mono',monospace",color:pctColor(r.avgAct),fontWeight:700}}>{r.avgAct}%</td>
+                        <td style={{fontFamily:"'DM Mono',monospace",color:C.blue,fontWeight:700}}>{r.avgSch}%</td>
+                        <td style={{fontFamily:"'DM Mono',monospace",color:r.gap>0?C.red:C.green,fontWeight:800}}>{r.gap>0?`-${r.gap}%`:`+${Math.abs(r.gap)}%`}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
+
+      {showFinanceModal&&(
+        <Modal title="Finance & Payments" subtitle="Portfolio-level contract / payment / security fields (editable via MD Input Sheet)" onClose={()=>setShowFinanceModal(false)} width={1200}>
+          <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,overflow:"auto"}}>
+            <table style={{minWidth:1100}}>
+              <thead>
+                <tr style={{background:C.surfaceAlt}}>
+                  {["Project","Contract (₹ L)","Paid (₹ L)","Balance (₹ L)","PBG (₹ L)","PBG Expiry","EMD (₹ L)"].map(h=>(
+                    <th key={h} style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:C.text2,letterSpacing:".05em",textTransform:"uppercase",borderBottom:`2px solid ${C.border}`,whiteSpace:"nowrap"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {projects.map(p=>{
+                  const contract = Number(p.contract_value_lakhs||0);
+                  const paid = Number(p.payments_made_lakhs||0);
+                  const bal = Math.max(0, contract-paid);
+                  return (
+                    <tr key={p.project_id}>
+                      <td>
+                        <div style={{fontSize:10,color:C.text4,fontFamily:"'DM Mono',monospace"}}>{p.project_code}</div>
+                        <div style={{fontSize:12,fontWeight:700,color:C.text1,marginTop:2,maxWidth:260}}>{p.project_name}</div>
+                      </td>
+                      <td style={{fontFamily:"'DM Mono',monospace",color:C.purple,fontWeight:700}}>{contract?fmtLakhInt(contract):"—"}</td>
+                      <td style={{fontFamily:"'DM Mono',monospace",color:C.green,fontWeight:800}}>{paid?fmtLakhInt(paid):"—"}</td>
+                      <td style={{fontFamily:"'DM Mono',monospace",color:C.amber,fontWeight:700}}>{contract?fmtLakhInt(bal):"—"}</td>
+                      <td style={{fontFamily:"'DM Mono',monospace",color:C.teal,fontWeight:700}}>{p.pbg_amount_lakhs?fmtLakhInt(p.pbg_amount_lakhs):"—"}</td>
+                      <td style={{fontFamily:"'DM Mono',monospace",color:C.text3,fontWeight:600}}>{p.pbg_expiry_date||"—"}</td>
+                      <td style={{fontFamily:"'DM Mono',monospace",color:C.orange,fontWeight:700}}>{p.emd_amount_lakhs?fmtLakhInt(p.emd_amount_lakhs):"—"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
