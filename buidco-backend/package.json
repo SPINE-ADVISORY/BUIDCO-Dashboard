@@ -1,0 +1,33 @@
+{
+  "name": "buidco-api",
+  "version": "1.0.0",
+  "description": "BUIDCO Project Monitoring System — REST API",
+  "scripts": {
+    "dev":         "tsx watch src/app.ts",
+    "build":       "tsc",
+    "start":       "node dist/app.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate":  "tsx scripts/migrate.ts",
+    "db:studio":   "drizzle-kit studio",
+    "db:seed":     "tsx scripts/seed.ts"
+  },
+  "dependencies": {
+    "cors":          "^2.8.5",
+    "dotenv":        "^16.4.5",
+    "drizzle-orm":   "^0.36.4",
+    "express":       "^4.21.2",
+    "jsonwebtoken":  "^9.0.2",
+    "postgres":      "^3.4.5",
+    "zod":           "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors":        "^2.8.17",
+    "@types/express":     "^4.17.21",
+    "@types/jsonwebtoken":"^9.0.7",
+    "@types/node":        "^22.10.0",
+    "drizzle-kit":        "^0.28.0",
+    "drizzle-zod":        "^0.5.1",
+    "tsx":                "^4.19.2",
+    "typescript":         "^5.7.2"
+  }
+}
